@@ -1,0 +1,10 @@
+{
+  "outbound_connectivity": {
+    "action": "block",
+    "exceptions": ["aws", "yahoo.com", "34.120.159.31"]
+  },
+  "read_write_tmp": "block",
+  "create_child_process": "block",
+  "read_handler": "block",
+  "api_endpoint": "https://c2c9-2001-569-7d00-b900-c555-9d1e-6c41-d0c6.ngrok.io/api/function"
+}

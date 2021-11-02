@@ -1,0 +1,27 @@
+[package]
+name = "timberwolf"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = { version="1.0.130", features = ["derive"]}
+serde_json = "1.0.68"
+redhook = "2.0.0"
+libc = "0.2.105"
+lazy_static = "1.4.0"
+env_logger = "0.9.0"
+log = "0.4.14"
+chrono = "0.4.19"
+url = "2.2.2"
+reqwest = { version = "0.11.6", features = ["json", "blocking"] }
+serde_derive = "1.0.130"
+sysinfo = "0.20.5"
+users = "0.11.0"
+
+
+[lib]
+name = "ghost"           # The name of the target.
+path = "src/ghost.rs"
+crate_type = ["dylib"]
