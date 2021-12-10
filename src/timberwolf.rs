@@ -2,7 +2,6 @@ use serde::{Serialize, Deserialize};
 use std::env;
 
 use chrono::Local;
-use log::LevelFilter;
 use std::io::Write;
 
 
@@ -51,7 +50,7 @@ pub fn get_aws_info() -> AwsFunctionInfo{
         log_stream: log_stream
     };
 
-    println!("FUNCTION INFO: {:?}", function_info);
+    log::debug!("FUNCTION INFO: {:?}", function_info);
     return function_info
 }
 
@@ -64,7 +63,7 @@ pub struct Outbound{
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Policy{
     pub outbound_connectivity: Outbound,
-    read_write_tmp: String,
+    pub read_write_tmp: String,
     create_child_process: String,
     read_handler: String,
     pub api_endpoint: String,
@@ -98,7 +97,6 @@ pub fn setup_logging(){
                      record.args()
             )
         })
-        .filter(None, LevelFilter::Info)
         .init();
 }
 

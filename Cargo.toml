@@ -2,6 +2,7 @@
 name = "timberwolf"
 version = "0.1.0"
 edition = "2021"
+authors = ["Jeff Thorne"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -19,9 +20,10 @@ reqwest = { version = "0.11.6", features = ["json", "blocking"] }
 serde_derive = "1.0.130"
 sysinfo = "0.20.5"
 users = "0.11.0"
+errno = "0.2.8"
 
 
 [lib]
-name = "ghost"           # The name of the target.
+name = "ghost"
 path = "src/ghost.rs"
 crate_type = ["dylib"]

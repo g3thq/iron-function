@@ -3,3 +3,9 @@
 .idea/
 Cargo.lock
 ghost.zip
+/opt
+__pycache__/
+Dockerfile
+lib.zip
+lib
+ghost.zip

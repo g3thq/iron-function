@@ -8,18 +8,20 @@ extern crate redhook;
 #[macro_use]
 extern crate lazy_static;
 
+extern crate errno;
 
 
-use libc::{sockaddr, socklen_t, c_int, sockaddr_in, c_uint, mmsghdr, c_char, mode_t};
-use std::ffi::CStr;
-use std::path::Path;
+use libc::{sockaddr, socklen_t, c_int, c_char, mode_t, size_t, DIR, FILE, ssize_t};
+use std::ffi::{CStr};
 use std::{fs, str};
 use reqwest;
 use url::{Url};
 use chrono::Local;
-use std::env;
-use sysinfo::{System, get_current_pid, SystemExt, ProcessExt};
+use std::{env, ptr};
+use sysinfo::{System,SystemExt, ProcessExt};
 use users::{get_user_by_uid, get_current_uid};
+use errno::{Errno, set_errno};
+
 
 use timberwolf::{Policy, get_aws_info, AwsFunctionInfo, Event};
 
@@ -29,32 +31,153 @@ lazy_static! {
 }
 
 
+
+hook! {
+    unsafe fn access(pathname: *const c_char, mode: c_int) -> c_int => ghost_access{
+        log::debug!("IN ACCESS");
+        let c_str = CStr::from_ptr(pathname as *const i8);
+        let path = c_str.to_str().unwrap();
+        log::debug!("FILEPATH {:?}", path);
+
+         if !allow_filesystem_access(path){
+            log::debug!("BACK FROM ALLOW FS ACCESS");
+            create_log("BLOCK", &*format!("read_write_tmp policy enforced for {}", path));
+            send_event("block", &*format!("read_write_tmp policy enforced for {}", path), path, "read_write_tmp");
+            set_errno(Errno{0:13});
+            return -1;
+        }
+
+        real!(access)(pathname, mode)
+    }
+}
+
+//ssize_t write(int fd, const void *buf, size_t count);
+/*
 hook!{
-    unsafe fn sendmmsg(sockfd: c_int, msgvec: *mut mmsghdr, vlen: c_uint, flags: c_int) -> c_int => ghost_sendmmsg {
-        //println!("IN SENDMMSG");
-        real!(sendmmsg)(sockfd, msgvec, vlen, flags)
+    unsafe fn write(fd: c_int, buf: *mut libc::c_void, count: size_t) -> ssize_t => ghost_write{
+        log::debug!("IN WRITE");
+        //let f = File::from_raw_fd(fd);
+        //log::debug!("FILE DETAILS {:?}", f.metadata());
+        real!(write)(fd, buf, count)
+    }
+}
+*/
+
+hook! {
+    unsafe fn openat(dirfd: c_int, pathname: *const c_char, flags: c_int) -> c_int => ghost_openat{
+        log::debug!("IN OPEN AT");
+        let c_str = CStr::from_ptr(pathname as *const i8);
+        let path = c_str.to_str().unwrap();
+        log::debug!("PATHNAME {:?}", path);
+        real!(openat)(dirfd, pathname, flags)
     }
 }
 
 hook! {
-    unsafe fn stat(pathname: *const c_char, statbuf: *const libc::stat) -> c_int => ghost_stat{
-        println!("IN STAT");
-        println!("FILEPATH {:?}", pathname);
-        real!(stat)(pathname, statbuf)
+    unsafe fn execve(pathname: *const c_char, argv: *const c_char, envp: *const c_char) -> c_int => ghost_execve{
+        log::debug!("IN EXECVE");
+        let c_str = CStr::from_ptr(pathname as *const i8);
+        let path = c_str.to_str().unwrap();
+        log::debug!("PATHNAME {:?}", path);
+        real!(execve)(pathname, argv, envp)
     }
 }
 
 hook! {
     unsafe fn open(pathname: *const c_char, flags: c_int, mode: mode_t) -> c_int => ghost_open{
-        println!("IN OPEN");
+        log::debug!("IN OPEN");
+
         let c_str = CStr::from_ptr(pathname as *const i8);
         let path = c_str.to_str().unwrap();
-        println!("PATHNAME {:?}", path);
-        println!("FLAGS {:?}", flags);
+        log::debug!("PATHNAME {:?}", path);
+        log::debug!("FLAGS {:?}", flags);
+
+         if !allow_filesystem_access(path){
+            log::debug!("BACK FROM ALLOW FS ACCESS");
+            //create_log("BLOCK", &*format!("read_write_tmp policy enforced for {}", path));
+            //send_event("block", &*format!("read_write_tmp policy enforced for {}", path), path, "read_write_tmp");
+            set_errno(Errno{0:13});
+            log::debug!("BACK FROM SEND EVENT -----------------------");
+            return -1;
+        }
+
         real!(open)(pathname, flags, mode)
     }
 }
 
+
+/*
+hook! {
+    unsafe fn open64(pathname: *const c_char, mode: usize) -> *mut FILE => ghost_open64 {
+        log::debug!("IN F-OPEN");
+        let c_str = CStr::from_ptr(pathname as *const i8);
+        let path = c_str.to_str().unwrap();
+        log::debug!("PATHNAME {:?}", path);
+        real!(open64)(pathname, mode)
+
+    }
+}
+*/
+//int utimes(const char *filename, const struct timeval times[2]);
+
+hook! {
+    unsafe fn utimes(filename: *const c_char, times: *const libc::timeval) -> c_int => ghost_utimes {
+        log::debug!("IN UTIMES");
+        let c_str = CStr::from_ptr(filename as *const i8);
+        let file_name = c_str.to_str().unwrap();
+        log::debug!("FileName {:?}", file_name);
+        real!(utimes)(filename, times)
+
+    }
+}
+
+
+hook! {
+    unsafe fn fopen(pathname: *const c_char, mode: usize) -> usize => ghost_fopen {
+        log::debug!("IN OPEN64");
+        let c_str = CStr::from_ptr(pathname as *const i8);
+        let path = c_str.to_str().unwrap();
+        log::debug!("PATHNAME {:?}", path);
+        real!(fopen)(pathname, mode)
+
+    }
+}
+
+
+hook! {
+    unsafe fn opendir(name: *const c_char) -> *mut DIR => ghost_opendir{
+        log::debug!("IN OPENDIR");
+        let c_str = CStr::from_ptr(name as *const i8);
+        let path = c_str.to_str().unwrap();
+        log::debug!("NAME {:?}", path);
+
+
+        if !allow_filesystem_access(path){
+            log::debug!("BACK FROM ALLOW FS ACCESS");
+            //let test = ptr::NonNull::<libc::DIR>::;
+            create_log("BLOCK", &*format!("read_write_tmp policy enforced for {}", path));
+            send_event("block", &*format!("read_write_tmp policy enforced for {}", path), path, "read_write_tmp");
+            let p: *mut DIR = ptr::null_mut();
+            set_errno(Errno{0:13});
+            return p;
+
+        }
+
+        real!(opendir)(name)
+    }
+}
+/*
+hook! {
+    unsafe fn read(fd: c_int, buf: *mut libc::c_void, count: size_t) -> size_t => ghost_read{
+        log::debug!("IN READ");
+        //println!("BUF DATA: {:?}", *buf);
+        //let mut buf2 = vec!(1,2,3);
+        //let data2 = buf2.as_mut_ptr() as *mut c_void;
+        //println!("DATA2: {:?}", data2);
+        real!(read)(fd, buf, count)
+    }
+}
+*/
 hook!{
       unsafe fn connect(sockfd: c_int, addr: *mut sockaddr, addrlen: socklen_t) -> c_int => t_connect {
         //println!("\nIN CONNECT: \n");
@@ -74,7 +197,7 @@ hook!{
 hook!{
     unsafe fn getaddrinfo(node: *const char, service: *const char, hints: *const libc::addrinfo, res: *mut *mut libc::addrinfo) -> c_int => t_getaddrinfo{
         //println!("IN GETADDR");
-        log::info!("[GHOST ACTION]: In GETADDR");
+        log::debug!("[GHOST ACTION]: In GETADDR");
         let c_str = CStr::from_ptr(node as *const i8);
         let address = c_str.to_str().unwrap();
         //println!("PARSE 1 complete: {:?}", service);
@@ -88,14 +211,15 @@ hook!{
         }
 
         //println!("PARSE 2 complete");
-        println!("IN GETADDRINFO NODE: {}\n", address);
+        log::debug!("IN GETADDRINFO NODE: {}\n", address);
         //println!("IN GETADDRINFO HINTS FLAGS: {:?}\n", (*hints).ai_flags);
         //println!("IN GETADDRINFO HINTS FAMILY: {}\n", (*hints).ai_family);
        // println!("IN GETADDRINFO HINTS SOCKTYPE: {}\n", (*hints).ai_socktype);
 
 
         if !allow_outbound_connection(address){
-            return 1
+            set_errno(Errno{0:13});
+            return -2
         }else{
             real!(getaddrinfo)(node, service, hints, res)
         }
@@ -104,15 +228,14 @@ hook!{
 
 
 fn allow_outbound_connection(addr: &str) -> bool {
-    println!("IN OUTBOUND CONNECTION");
+    log::debug!("IN OUTBOUND CONNECTION");
     let found = POLICY.outbound_connectivity.exceptions.iter().any(|exception_addr| addr.contains(exception_addr) );
     let action: String = POLICY.outbound_connectivity.action.clone();
-    println!("IN OUTBOUND CONNECTION2");
 
     if (action == "block" && found) ||  (action != "block" && !found){
         if action == "block" {
             create_log("ALLOW", &*format!("policy exception for {}", addr));
-            //send_event("allow", &*format!("policy exception for {}", addr), "network");
+            send_event("allow", &*format!("policy exception for {}", addr), addr,"network");
         }
 
         if action != "block" { create_log("ALLOW", &*format!("policy allowed for {}", addr)); }
@@ -129,19 +252,36 @@ fn allow_outbound_connection(addr: &str) -> bool {
 }
 
 
-fn print_type_of<T>(_: &T) {
-    println!("{}", std::any::type_name::<T>())
+fn allow_filesystem_access(path: &str) -> bool {
+
+    if POLICY.read_write_tmp == "block"{
+        log::debug!("IN ALLOW FILESYSTEM ACCESS {}", path);
+        if path.contains("tmp"){
+            log::debug!("path does contain tmp");
+            return false
+        }
+    }
+
+    return true
+
+
 }
 
+/*
+fn print_type_of<T>(_: &T) {
+
+    println!("{}", std::any::type_name::<T>())
+}
+*/
 
 
 fn parse_policy() -> Policy{
 
-    println!("IN PARSE POLICY");
-    println!("Listing all env vars:");
-    for (key, val) in env::vars() {
-        println!("{}: {}", key, val);
-    }
+   // println!("IN PARSE POLICY");
+   // println!("Listing all env vars:");
+   // for (key, val) in env::vars() {
+   //     println!("{}: {}", key, val);
+   // }
 
     let policy_path = env::var("GHOST_POLICY").expect("GHOST [ERROR] GHOST_POLICY env not found");
 
@@ -164,11 +304,11 @@ fn parse_policy() -> Policy{
 
 
 fn create_log(action: &str, msg: &str){
-    log::info!("[GHOST ACTION]: {} -> {}", action, msg);
+    log::debug!("[GHOST ACTION]: {} -> {}", action, msg);
 }
 
 fn send_event(action: &str, msg: &str, what: &str, event_type: &str) {
-    println!("IN Send EVENT");
+    log::debug!("IN SEND_EVENT");
 
 
     let system = System::new_all();
@@ -199,7 +339,7 @@ fn send_event(action: &str, msg: &str, what: &str, event_type: &str) {
     let client = reqwest::blocking::Client::new();
     match client.post(&*api).json(&event).send(){
         Err(e) => handler(e),
-        Ok(v) => {},
+        Ok(_v) => {},
     }
 
 
@@ -208,15 +348,15 @@ fn send_event(action: &str, msg: &str, what: &str, event_type: &str) {
 
 fn handler(e: reqwest::Error){
     //print!("IN ERROR Handler");
-    print_type_of(&e);
+    //print_type_of(&e);
     if e.is_request() {
         //print!("IN ERROR REQUEST");
         match e.url(){
-            None => println!("No Url given"),
-            Some(url) => println!("Problem making request to: {}", url),
+            None => log::debug!("No Url given"),
+            Some(url) => log::debug!("Problem making request to: {}", url),
         }
     }
     if e.is_redirect() {
-        println!("server redirecting too many times or making loop");
+        log::debug!("server redirecting too many times or making loop");
     }
 }
