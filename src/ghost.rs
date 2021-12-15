@@ -11,7 +11,7 @@ extern crate lazy_static;
 extern crate errno;
 
 
-use libc::{sockaddr, socklen_t, c_int, c_char, mode_t, size_t, DIR, FILE, ssize_t};
+use libc::{sockaddr, socklen_t, c_int, c_char, mode_t, DIR };
 use std::ffi::{CStr};
 use std::{fs, str};
 use reqwest;
@@ -151,16 +151,15 @@ hook! {
         let path = c_str.to_str().unwrap();
         log::debug!("NAME {:?}", path);
 
-
         if !allow_filesystem_access(path){
             log::debug!("BACK FROM ALLOW FS ACCESS");
             //let test = ptr::NonNull::<libc::DIR>::;
             create_log("BLOCK", &*format!("read_write_tmp policy enforced for {}", path));
             send_event("block", &*format!("read_write_tmp policy enforced for {}", path), path, "read_write_tmp");
             let p: *mut DIR = ptr::null_mut();
+            log::trace!("-----------------------------------------------------------------VALUE OF NULL POINTER {:#?}", p);
             set_errno(Errno{0:13});
             return p;
-
         }
 
         real!(opendir)(name)
@@ -235,7 +234,7 @@ fn allow_outbound_connection(addr: &str) -> bool {
     if (action == "block" && found) ||  (action != "block" && !found){
         if action == "block" {
             create_log("ALLOW", &*format!("policy exception for {}", addr));
-            send_event("allow", &*format!("policy exception for {}", addr), addr,"network");
+            //send_event("allow", &*format!("policy exception for {}", addr), addr,"network");
         }
 
         if action != "block" { create_log("ALLOW", &*format!("policy allowed for {}", addr)); }
@@ -282,7 +281,7 @@ fn parse_policy() -> Policy{
    // for (key, val) in env::vars() {
    //     println!("{}: {}", key, val);
    // }
-
+    log::debug!("IN PARSE POLICY");
     let policy_path = env::var("GHOST_POLICY").expect("GHOST [ERROR] GHOST_POLICY env not found");
 
     timberwolf::setup_logging();

@@ -6,5 +6,5 @@
   "read_write_tmp": "block",
   "create_child_process": "block",
   "read_handler": "block",
-  "api_endpoint": "https://g3t.dev/api/function"
+  "api_endpoint": "http://g3t.dev/api/function"
 }
