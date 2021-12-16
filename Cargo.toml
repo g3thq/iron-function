@@ -1,10 +1,8 @@
 [package]
-name = "timberwolf"
+name = "iron_function"
 version = "0.1.0"
 edition = "2021"
 authors = ["Jeff Thorne"]
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 serde = { version="1.0.130", features = ["derive"]}
@@ -16,7 +14,7 @@ env_logger = "0.9.0"
 log = "0.4.14"
 chrono = "0.4.19"
 url = "2.2.2"
-reqwest = { version = "0.11.7", features = ["json", "blocking"] }
+reqwest = { version = "0.11.7", default-features = false, features = ["json", "blocking",  "rustls-tls"] }
 serde_derive = "1.0.130"
 sysinfo = "0.20.5"
 users = "0.11.0"
@@ -24,6 +22,6 @@ errno = "0.2.8"
 
 
 [lib]
-name = "ghost"
-path = "src/ghost.rs"
+name = "_iron_function"
+path = "src/iron_function.rs"
 crate_type = ["dylib"]

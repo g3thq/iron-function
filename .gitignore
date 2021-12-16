@@ -9,3 +9,7 @@ Dockerfile
 lib.zip
 lib
 ghost.zip
+iron_function.zip
+setup.sh
+build.sh
+teardown.sh
