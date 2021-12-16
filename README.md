@@ -1,3 +1,6 @@
+
+<img src="https://about.g3t.dev/img/ghost_logo.png" alt="WhiteBeam Logo" height="150px" width="150px"/><br/><br/>
+
 Iron Function is a research project in the areas of serverless runtime detection and prevention of malicious attack vectors. Contributions welcome.
 
 STATUS: Experimental - not ready for use.
@@ -33,6 +36,35 @@ For our initial POC ghost has decided to try LD_PRELOAD for performance and easy
   "create_child_process": "block",
   "read_handler": "block",
   "api_endpoint": "https://your_optional_endpoint_to_receive_events"
+}
+```
+
+## Event Schema
+```
+{
+    "aws_function_info": {
+        "region": "string",
+        "execution_env": "string",
+        "lambda_function_name": "string",
+        "initialization_type": "string",
+        "task_root": "string",
+        "runtime_dir": "string",
+        "tz": "string",
+        "memory_size": "string",
+        "version": "string",
+        "log_group": "string",
+        "log_stream": "string"
+    },
+    "event_type": "string",
+    "action": "string",
+    "what": "string",
+    "message": "string",
+    "time": "string",
+    "process_id": "string",
+    "process_name": "string",
+    "process_command": "string",
+    "user_id": "string",
+    "user_name": "string"
 }
 ```
 
